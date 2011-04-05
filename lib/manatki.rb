@@ -1,7 +1,7 @@
 # https://github.com/camlunity/kamlo_wiki/blob/master/Res.md
 
 module Manatki
-  class FailMonad
+  module FailMonad
     def ret(val)
       {:status => :ok, :value => val}
     end
