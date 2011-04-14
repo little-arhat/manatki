@@ -1,14 +1,39 @@
 # https://github.com/camlunity/kamlo_wiki/blob/master/Res.md
 
+# https://github.com/neilconway/superators/commits/mri-19-compat
+
+require 'superators'
+
+
 module Manatki
+
   module FailMonad
 
+    class Manatka < Hash
+      def bind(f)
+        if self[:status] == :ok
+          f.call(self[:value])
+        else
+          self
+        end
+      end
+
+      superator ">>-" do |f|
+        bind(f)
+      end
+    end
+
+    def _(hsh)
+      m = Manatki::FailMonad::Manatka.new
+      m.merge!(hsh)
+    end
+
     def ret(val)
-      {:status => :ok, :value => val}
+      _({:status => :ok, :value => val})
     end
 
     def fail(e, opts={})
-      {:status => :err, :value => e}.merge(opts)
+      _({:status => :err, :value => e}).merge(opts)
     end
 
     def ok?(r)
@@ -22,7 +47,12 @@ module Manatki
         m
       end
     end
-    # alias_method :>>=, :bind
+
+    def fmap(f)
+      return lambda { |v|
+        wrap(f, v)
+      }
+    end
 
     def catch(func, handler)
       res = func.call()
@@ -34,9 +64,9 @@ module Manatki
     end
 
     def wrap(func, *args)
-      {:status => :ok, :value => func.call(*args)}
+      _({:status => :ok, :value => func.call(*args)})
     rescue StandardError => exc
-      {:status => :error, :value => exc}
+      _({:status => :error, :value => exc})
     end
 
     def catch_exn(func)
@@ -94,9 +124,9 @@ module Manatki
 
 
   module FunHelper
-    def fun(smb)
+    def fun(smb, obj=self)
       return lambda { |*args|
-        smb.to_proc.call(self, *args)
+        smb.to_proc.call(obj, *args)
       }
     end
   end
@@ -115,10 +145,16 @@ class Server
     "connected!"
   end
 
+  def mult(smt)
+    ret (smt * 5)
+  end
+
   def process(addr, meth)
-    bind(lambda { |x|  ret (p x).first },
-         bind(lambda { |x| ret [(p x)] },
-              wrap(fun(meth), addr)))
+    wrap(fun(meth), addr) >>-
+      lambda { |x| ret [x] } >>-
+      lambda { |x|  ret x.first } >>-
+      fun(:mult) >>- fmap(fun(:p, Kernel))
+
   end
 
   def f_process(addr)
