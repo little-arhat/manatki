@@ -16,7 +16,6 @@ module Manatki
     end
 
     def bind(f, m)
-      puts "bnd #{m}"
       if m[:status] == :ok
         f.call(m[:value])
       else
