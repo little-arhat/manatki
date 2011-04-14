@@ -2,6 +2,7 @@
 
 module Manatki
   module FailMonad
+
     def ret(val)
       {:status => :ok, :value => val}
     end
@@ -15,6 +16,7 @@ module Manatki
     end
 
     def bind(f, m)
+      puts "bnd #{m}"
       if m[:status] == :ok
         f.call(m[:value])
       else
@@ -90,4 +92,52 @@ module Manatki
     end
 
   end
+
+
+  module FunHelper
+    def fun(smb)
+      return lambda { |*args|
+        smb.to_proc.call(self, *args)
+      }
+    end
+  end
+
+end
+
+class Server
+  include Manatki::FailMonad
+  include Manatki::FunHelper
+
+  def f_connect(addr)
+    raise StandardError
+  end
+
+  def s_connect(addr)
+    "connected!"
+  end
+
+  def process(addr, meth)
+    bind(lambda { |x|  ret (p x).first },
+         bind(lambda { |x| ret [(p x)] },
+              wrap(fun(meth), addr)))
+  end
+
+  def f_process(addr)
+    process(addr, :f_connect)
+  end
+
+  def s_process(addr)
+    process(addr, :s_connect)
+  end
+
+end
+
+
+def test
+  addr = "caml.inria.fr"
+  s = Server.new
+
+  puts s.f_process(addr)
+  puts s.s_process(addr)
+
 end
