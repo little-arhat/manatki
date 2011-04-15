@@ -4,6 +4,14 @@
 
 require 'superators'
 
+module Kernel
+  def fun(smb)
+    return lambda { |*args|
+      smb.to_proc.call(self, *args)
+    }
+  end
+end
+
 
 module Manatki
 
@@ -122,7 +130,6 @@ module Manatki
 
   end
 
-
   module FunHelper
     def fun(smb, obj=self)
       return lambda { |*args|
@@ -135,7 +142,6 @@ end
 
 class Server
   include Manatki::FailMonad
-  include Manatki::FunHelper
 
   def f_connect(addr)
     raise StandardError
@@ -153,7 +159,7 @@ class Server
     wrap(fun(meth), addr) >>-
       lambda { |x| ret [x] } >>-
       lambda { |x|  ret x.first } >>-
-      fun(:mult) >>- fmap(fun(:p, Kernel))
+      fun(:mult) >>- fmap(Kernel.fun(:p))
 
   end
 
